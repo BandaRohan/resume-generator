@@ -1,6 +1,6 @@
-import React from 'react';
-import { FaPaperPlane, FaKeyboard } from 'react-icons/fa';
-import { motion } from 'framer-motion';
+import React, { useEffect } from 'react';
+import { FaPaperPlane, FaKeyboard, FaMicrophone } from 'react-icons/fa';
+import { motion, AnimatePresence } from 'framer-motion';
 
 /**
  * InputForm component for sending messages
@@ -12,8 +12,13 @@ import { motion } from 'framer-motion';
  * @param {Object} props.inputRef - Ref for the input element
  */
 const InputForm = ({ input, setInput, loading, sendMessage, inputRef }) => {
+  // Force re-render when loading state changes to ensure animation state is reset
+  useEffect(() => {
+    // This empty dependency array ensures the effect runs only when loading changes
+  }, [loading]);
+
   return (
-    <div className="border-t border-gray-200 bg-white">
+    <div className="border-t border-gray-200 bg-white shadow-md">
       <div className="max-w-7xl mx-auto px-4">
         <form
           className="py-4 flex items-center space-x-3"
@@ -26,12 +31,23 @@ const InputForm = ({ input, setInput, loading, sendMessage, inputRef }) => {
             <input
               ref={inputRef}
               type="text"
-              className="w-full py-4 pl-12 pr-4 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all shadow-sm"
+              className="w-full py-4 pl-12 pr-16 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-sm text-gray-700"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Type your information here..."
               disabled={loading}
             />
+            <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                type="button"
+                className="text-gray-400 hover:text-blue-500 transition-colors"
+                disabled={loading}
+              >
+                <FaMicrophone />
+              </motion.button>
+            </div>
           </div>
           <motion.button
             whileHover={{ scale: 1.05 }}

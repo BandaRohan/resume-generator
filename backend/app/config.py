@@ -17,3 +17,7 @@ PORT = int(os.environ.get("PORT", "8000"))
 
 # CORS settings
 ALLOW_ORIGINS = os.environ.get("ALLOW_ORIGINS", "*").split(",")
+
+# MongoDB settings
+MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
+MONGO_DB_NAME = os.environ.get("MONGO_DB_NAME", "resume_chat_app")
