@@ -64,13 +64,13 @@ class ConversationResponse(BaseModel):
 @app.post("/chat/", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     try:
-        # Process the message with the resume agent
-        response = resume_agent.process_message(request.message)
-        
         # Create a new conversation if none exists
         conversation_id = request.conversation_id
         if not conversation_id:
             conversation_id = await Database.create_conversation("Resume Conversation")
+        
+        # Process the message with the resume agent, passing the conversation_id
+        response = resume_agent.process_message(request.message, conversation_id)
         
         # Save the user message
         await Database.add_message(conversation_id, request.message, "user")
@@ -131,6 +131,10 @@ async def update_conversation(conversation_id: str, request: ConversationUpdate)
 @app.delete("/conversations/{conversation_id}")
 async def delete_conversation(conversation_id: str):
     try:
+        # Clear the conversation memory in the agent
+        resume_agent.clear_memory(conversation_id)
+        
+        # Delete the conversation from the database
         success = await Database.delete_conversation(conversation_id)
         if not success:
             raise HTTPException(status_code=404, detail="Conversation not found")

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { FaFileAlt, FaUser, FaRobot, FaCopy, FaCheck } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import { extractCanvasContent } from '../../utils';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 /**
  * MessageBubble component displays a single chat message
@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 const MessageBubble = ({ message, setCanvasContent, setIsCanvasOpen, setCanvasSize }) => {
   const contentParts = extractCanvasContent(message.text);
   const [copied, setCopied] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   
   const handleCopyText = (text) => {
     navigator.clipboard.writeText(text);
@@ -17,66 +18,52 @@ const MessageBubble = ({ message, setCanvasContent, setIsCanvasOpen, setCanvasSi
     setTimeout(() => setCopied(false), 2000);
   };
   
+  // Check if message is very short (less than 5 characters)
+  const isShortMessage = message.text.trim().length < 5;
+  
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className={`p-5 rounded-2xl shadow-md my-4 transition-all duration-300 max-w-4xl ${
+      className={`p-4 rounded-2xl shadow-md my-8 inline-block transition-all duration-200 ${
         message.sender === "user"
-          ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white self-end ml-12 hover:shadow-lg"
-          : "bg-white border border-gray-200 text-gray-800 self-start mr-12 hover:border-blue-200 hover:shadow-lg"
-      } ${message.error ? "bg-gradient-to-br from-red-400 to-red-500 border-red-300 border" : ""}`}
+          ? "bg-blue-500 text-white ml-auto hover:bg-blue-600"
+          : "bg-white border border-gray-200 text-gray-800 mr-auto hover:border-blue-300 hover:shadow-lg"
+      } ${message.error ? "bg-red-500 border-red-300" : ""} ${isShortMessage ? "min-w-[100px]" : ""}`}
+      style={{ 
+        maxWidth: message.sender === "user" ? "70%" : "75%",
+        minWidth: "auto"
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center">
-          <motion.div 
-            className={`rounded-full p-2 mr-2 ${message.sender === "user" ? "bg-blue-400" : "bg-gray-200"}`}
-            whileHover={{ scale: 1.1, rotate: 5 }}
-          >
+          <div className={`rounded-full p-2 mr-2 ${message.sender === "user" ? "bg-blue-400" : "bg-gray-200"}`}>
             {message.sender === "user" ? (
               <FaUser className="w-3 h-3 text-white" />
             ) : (
               <FaRobot className="w-3 h-3 text-gray-600" />
             )}
-          </motion.div>
-          <span className={`text-sm font-medium ${message.sender === "user" ? "text-blue-100" : "text-gray-500"}`}>
+          </div>
+          <span className={`text-sm font-medium ${message.sender === "user" ? "text-white" : "text-gray-500"}`}>
             {message.sender === "user" ? "You" : "Resume AI"}
           </span>
         </div>
         
         {message.sender !== "user" && (
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
+          <button
             onClick={() => handleCopyText(message.text)}
-            className={`text-gray-400 hover:text-blue-500 transition-colors p-1 rounded-full`}
+            className={`text-gray-400 hover:text-blue-500 transition-colors p-1 rounded-full ml-3 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
             title="Copy message"
           >
-            <AnimatePresence mode="wait">
-              {copied ? (
-                <motion.div
-                  key="check"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <FaCheck className="w-4 h-4 text-green-500" />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="copy"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <FaCopy className="w-4 h-4" />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.button>
+            {copied ? (
+              <FaCheck className="w-4 h-4 text-green-500" />
+            ) : (
+              <FaCopy className="w-4 h-4" />
+            )}
+          </button>
         )}
       </div>
       
@@ -84,9 +71,7 @@ const MessageBubble = ({ message, setCanvasContent, setIsCanvasOpen, setCanvasSi
         {contentParts.map((part, index) =>
           part.type === "code" ? (
             <div key={index} className="mt-4 mb-2">
-              <motion.button
-                whileHover={{ scale: 1.03, boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)" }}
-                whileTap={{ scale: 0.98 }}
+              <button
                 className="inline-flex items-center bg-white text-blue-600 px-4 py-2 rounded-full hover:bg-blue-50 transition-all font-medium shadow-sm border border-blue-100"
                 onClick={() => {
                   setCanvasContent(part.text);
@@ -95,10 +80,10 @@ const MessageBubble = ({ message, setCanvasContent, setIsCanvasOpen, setCanvasSi
                 }}
               >
                 <FaFileAlt className="mr-2" /> View Generated Resume
-              </motion.button>
+              </button>
             </div>
           ) : (
-            <div key={index} className={`prose max-w-none ${message.sender === "user" ? "prose-invert" : "prose-blue"}`}>
+            <div key={index} className={`prose max-w-none ${message.sender === "user" ? "prose-invert" : ""}`}>
               <ReactMarkdown>{part.text}</ReactMarkdown>
             </div>
           )

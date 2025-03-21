@@ -13,7 +13,7 @@ const Sidebar = ({
   activeConversationId,
   setActiveConversationId,
   loadConversation,
-  createNewConversation,
+  handleNewConversation,
   isMobile,
   isSidebarOpen,
   setIsSidebarOpen
@@ -60,25 +60,55 @@ const Sidebar = ({
   // Handle conversation deletion
   const deleteConversation = async (id) => {
     try {
-      await axios.delete(`http://127.0.0.1:8000/conversations/${id}`);
+      // Close the confirmation dialog immediately
+      setConfirmDeleteId(null);
       
-      setConversations(conversations.filter(conv => conv._id !== id));
-      
-      // If the active conversation was deleted, set a new active conversation
-      if (activeConversationId === id) {
-        const remainingConversations = conversations.filter(conv => conv._id !== id);
-        if (remainingConversations.length > 0) {
-          setActiveConversationId(remainingConversations[0]._id);
-          loadConversation(remainingConversations[0]._id);
-        } else {
-          // If no conversations left, create a new one
-          createNewConversation();
-        }
+      // If on mobile, close the sidebar after deletion
+      if (isMobile) {
+        setIsSidebarOpen(false);
       }
       
-      setConfirmDeleteId(null);
+      // If the active conversation was deleted, reset UI immediately
+      if (activeConversationId === id) {
+        // Signal to parent component to clear the UI
+        setActiveConversationId(null);
+      }
+      
+      // Delete the conversation and all its messages from the server
+      const response = await axios.delete(`http://127.0.0.1:8000/conversations/${id}`);
+      
+      if (response.status === 200 || response.status === 204) {
+        // Remove from local state immediately
+        const remainingConversations = conversations.filter(conv => conv._id !== id);
+        setConversations(remainingConversations);
+        
+        // If the active conversation was deleted, set a new active conversation
+        if (activeConversationId === id) {
+          if (remainingConversations.length > 0) {
+            // Set the first remaining conversation as active
+            setActiveConversationId(remainingConversations[0]._id);
+            loadConversation(remainingConversations[0]._id);
+          }
+        }
+      } else {
+        console.error("Failed to delete conversation:", response);
+      }
     } catch (error) {
       console.error("Error deleting conversation:", error);
+      // Even if the server request fails, try to update the UI
+      if (error.response && (error.response.status === 404 || error.response.status === 500)) {
+        // If the conversation doesn't exist on the server or there's a server error,
+        // still remove it from the local state
+        const remainingConversations = conversations.filter(conv => conv._id !== id);
+        setConversations(remainingConversations);
+        
+        if (activeConversationId === id) {
+          if (remainingConversations.length > 0) {
+            setActiveConversationId(remainingConversations[0]._id);
+            loadConversation(remainingConversations[0]._id);
+          }
+        }
+      }
     }
   };
 
@@ -114,7 +144,7 @@ const Sidebar = ({
           </div>
           
           <motion.button
-            onClick={createNewConversation}
+            onClick={handleNewConversation}
             className="flex items-center justify-center w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md mb-4 transition-colors"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}

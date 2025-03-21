@@ -141,7 +141,7 @@ export const convertMarkdownToPDF = (markdownText) => {
       inParagraph = true;
     } else {
       // Continue paragraph with a space
-      result.push(line);
+      result.push(' ' + line);
     }
   }
   
@@ -152,67 +152,151 @@ export const convertMarkdownToPDF = (markdownText) => {
   
   html = result.join('\n');
   
-  // Create the complete HTML document with styling
-  const fullHTML = `
-<!DOCTYPE html>
+  // Return the complete HTML document with styling
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Resume</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Resume Preview</title>
   <style>
     body {
-      font-family: 'Calibri', Arial, sans-serif;
-      line-height: 1.5;
-      margin: 0 auto;
-      padding: 0;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
       color: #333;
       background-color: #fff;
+      margin: 0;
+      padding: 0;
+      -webkit-text-size-adjust: 100%;
     }
-
+    
     .container {
+      width: 100%;
+      max-width: 800px;
+      margin: 0 auto;
       padding: 20px;
-      max-width: 100%;
+      box-sizing: border-box;
     }
-
+    
+    @media print {
+      .container {
+        width: 100%;
+        max-width: none;
+        padding: 0;
+        margin: 0;
+      }
+      
+      body {
+        background-color: white;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    }
+    
+    @media screen and (max-width: 768px) {
+      .container {
+        padding: 10px;
+      }
+      
+      h1, h2, h3 {
+        margin-top: 8px;
+        margin-bottom: 8px;
+      }
+      
+      .resume-section {
+        margin-bottom: 12px;
+      }
+      
+      .resume-name {
+        font-size: 24px;
+      }
+      
+      .section-heading {
+        font-size: 18px;
+      }
+      
+      p, li {
+        font-size: 14px;
+      }
+    }
+    
     .resume-name {
-      font-size: 24pt;
-      text-align: center;
+      font-size: 28px;
+      font-weight: bold;
       margin-bottom: 5px;
-      color: #1a5276;
+      color: #2563eb;
+      border-bottom: 2px solid #2563eb;
+      padding-bottom: 5px;
     }
-
-    .contact-info {
-      text-align: center;
-      margin-bottom: 15px;
-    }
-
+    
     .section-heading {
-      font-size: 14pt;
-      color: #1a5276;
-      margin-top: 15px;
-      margin-bottom: 8px;
-      border-bottom: 1px solid #1a5276;
+      font-size: 20px;
+      font-weight: bold;
+      margin-top: 20px;
+      margin-bottom: 10px;
+      color: #1e40af;
+      border-bottom: 1px solid #ddd;
       padding-bottom: 3px;
     }
-
-    hr {
-      display: none;
+    
+    h3 {
+      font-size: 16px;
+      font-weight: bold;
+      margin-top: 15px;
+      margin-bottom: 5px;
+      color: #333;
     }
-
+    
+    p {
+      margin-top: 5px;
+      margin-bottom: 5px;
+    }
+    
+    .resume-section {
+      margin-bottom: 20px;
+    }
+    
+    hr {
+      border: none;
+      height: 1px;
+      background-color: #ddd;
+      margin: 20px 0;
+    }
+    
+    .contact-info {
+      margin-bottom: 15px;
+      font-size: 14px;
+    }
+    
+    .job-title {
+      font-weight: bold;
+      margin-bottom: 0;
+    }
+    
+    .job-date {
+      font-style: italic;
+      color: #666;
+      font-size: 14px;
+      margin-top: 0;
+    }
+    
+    .job-description {
+      margin-top: 5px;
+    }
+    
     ul {
       margin-top: 5px;
       padding-left: 20px;
     }
-
+    
     li {
       margin-bottom: 5px;
     }
-
+    
     strong {
       font-weight: bold;
     }
-
+    
     em {
       font-style: italic;
     }
@@ -222,6 +306,14 @@ export const convertMarkdownToPDF = (markdownText) => {
       width: 100%;
       border-collapse: collapse;
       margin: 15px 0;
+      overflow-x: auto;
+      display: block;
+    }
+    
+    @media screen and (min-width: 768px) {
+      .resume-table {
+        display: table;
+      }
     }
     
     .resume-table th {
@@ -235,10 +327,27 @@ export const convertMarkdownToPDF = (markdownText) => {
     .resume-table td {
       padding: 8px;
       border: 1px solid #ddd;
+      word-break: break-word;
     }
     
     .resume-table tr:nth-child(even) {
       background-color: #f9f9f9;
+    }
+    
+    /* Fix for mobile overflow */
+    @media screen and (max-width: 480px) {
+      pre, code {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        max-width: 100%;
+      }
+      
+      .resume-table th,
+      .resume-table td {
+        padding: 5px;
+        font-size: 13px;
+      }
     }
   </style>
 </head>
@@ -249,6 +358,4 @@ export const convertMarkdownToPDF = (markdownText) => {
 </body>
 </html>
   `;
-
-  return fullHTML;
 };
