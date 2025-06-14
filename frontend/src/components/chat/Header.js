@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaRedo, FaFileAlt, FaGraduationCap, FaInfoCircle, FaGithub, FaBars } from 'react-icons/fa';
+import { FaRedo, FaFileAlt, FaGraduationCap, FaInfoCircle, FaGithub, FaBars, FaHome } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 
 /**
@@ -29,6 +29,16 @@ const Header = ({ isCanvasOpen, canvasContent, setIsCanvasOpen, resetChat, toggl
             title="Toggle sidebar"
           >
             <FaBars className="w-5 h-5" />
+          </motion.button>
+          
+          <motion.button
+            onClick={() => window.location.href = '/'}
+            className="mr-3 hover:bg-blue-500/50 p-2 rounded-md transition-colors"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            title="Go to Home"
+          >
+            <FaHome className="w-5 h-5" />
           </motion.button>
           
           <motion.div 
