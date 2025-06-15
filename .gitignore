@@ -1,0 +1,58 @@
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore Python cache files
+_pycache_/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore Node.js dependencies
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Ignore environment files
+.env
+.env.local
+.env.development
+.env.production
+
+# Ignore logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Ignore compiled files
+dist/
+build/
+out/
+coverage/
+*.o
+*.obj
+*.exe
+*.class
+
+# Ignore IDE/editor-specific files
+.vscode/
+.idea/
+*.iml
+
+# Ignore Git-related files
+.git/
+
+
+# Ignore macOS system files
+*.DS_Store
+
+# Ignore package manager lock files (if not needed)
+package-lock.json
+yarn.lock
+
+# Ignore virtual environments (Python)
+venv/
+.env/
+cloudflared-linux-amd64.deb
