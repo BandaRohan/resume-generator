@@ -12,21 +12,24 @@ from pymongo import DESCENDING
 from bson import ObjectId
 
 from app.config import MONGO_URI, MONGO_DB_NAME
+from app.auth import get_password_hash, verify_password
 
 # Collections
 CONVERSATIONS_COLLECTION = "conversations"
 MESSAGES_COLLECTION = "messages"
+USERS_COLLECTION = "users"
 
 # Fallback file paths for local storage when MongoDB isn't available
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 CONVERSATIONS_FILE = os.path.join(DATA_DIR, "conversations.json")
 MESSAGES_FILE = os.path.join(DATA_DIR, "messages.json")
+USERS_FILE = os.path.join(DATA_DIR, "users.json")
 
 # Ensure data directory exists
 os.makedirs(DATA_DIR, exist_ok=True)
 
 # Initialize empty data files if they don't exist
-for file_path in [CONVERSATIONS_FILE, MESSAGES_FILE]:
+for file_path in [CONVERSATIONS_FILE, MESSAGES_FILE, USERS_FILE]:
     if not os.path.exists(file_path):
         with open(file_path, 'w') as f:
             json.dump([], f)
@@ -62,16 +65,139 @@ class Database:
             return cls.client[MONGO_DB_NAME]
         return None
     
+    # User-related methods
     @classmethod
-    async def create_conversation(cls, title: str) -> str:
+    async def create_user(cls, name: str, email: str, password: str) -> str:
+        """Create a new user and return its ID"""
+        # Hash the password
+        hashed_password = get_password_hash(password)
+        
+        if cls.use_mongodb:
+            db = await cls.get_db()
+            
+            # Check if user with this email already exists
+            existing_user = await db[USERS_COLLECTION].find_one({"email": email})
+            if existing_user:
+                return None
+            
+            result = await db[USERS_COLLECTION].insert_one({
+                "name": name,
+                "email": email,
+                "password": hashed_password,
+                "created_at": datetime.utcnow()
+            })
+            return str(result.inserted_id)
+        else:
+            # Local file fallback
+            with open(USERS_FILE, 'r') as f:
+                users = json.load(f)
+            
+            # Check if user with this email already exists
+            if any(user["email"] == email for user in users):
+                return None
+            
+            # Generate a simple ID
+            new_id = str(len(users) + 1)
+            new_user = {
+                "_id": new_id,
+                "name": name,
+                "email": email,
+                "password": hashed_password,
+                "created_at": datetime.utcnow().isoformat()
+            }
+            
+            users.append(new_user)
+            
+            with open(USERS_FILE, 'w') as f:
+                json.dump(users, f, indent=2)
+            
+            return new_id
+    
+    @classmethod
+    async def get_user_by_email(cls, email: str) -> Optional[Dict[str, Any]]:
+        """Get a user by email"""
+        if cls.use_mongodb:
+            db = await cls.get_db()
+            user = await db[USERS_COLLECTION].find_one({"email": email})
+            if user:
+                user["id"] = str(user["_id"])
+                user["user_id"] = str(user["_id"])
+                del user["_id"]
+            return user
+        else:
+            # Local file fallback
+            with open(USERS_FILE, 'r') as f:
+                users = json.load(f)
+            
+            for user in users:
+                if user["email"] == email:
+                    user_copy = user.copy()
+                    user_copy["id"] = user_copy["_id"]
+                    user_copy["user_id"] = user_copy["_id"]
+                    del user_copy["_id"]
+                    return user_copy
+            
+            return None
+    
+    @classmethod
+    async def get_user_by_id(cls, user_id: str) -> Optional[Dict[str, Any]]:
+        """Get a user by ID"""
+        if cls.use_mongodb:
+            db = await cls.get_db()
+            try:
+                user = await db[USERS_COLLECTION].find_one({"_id": ObjectId(user_id)})
+                if user:
+                    user["_id"] = str(user["_id"])
+                    user["id"] = user["_id"]
+                    user["user_id"] = user["_id"]
+                return user
+            except:
+                return None
+        else:
+            # Local file fallback
+            with open(USERS_FILE, 'r') as f:
+                users = json.load(f)
+            
+            for user in users:
+                if user["_id"] == user_id:
+                    user_copy = user.copy()
+                    user_copy["id"] = user_copy["_id"]
+                    del user_copy["_id"]
+                    return user_copy
+            
+            return None
+    
+    @classmethod
+    async def authenticate_user(cls, email: str, password: str) -> Optional[Dict[str, Any]]:
+        """Authenticate a user by email and password"""
+        user = await cls.get_user_by_email(email)
+        
+        if not user:
+            return None
+        
+        if not verify_password(password, user["password"]):
+            return None
+        
+        # Don't return the password
+        del user["password"]
+        return user
+    
+    @classmethod
+    async def create_conversation(cls, title: str, user_id: Optional[str] = None) -> str:
         """Create a new conversation and return its ID"""
         if cls.use_mongodb:
             db = await cls.get_db()
-            result = await db[CONVERSATIONS_COLLECTION].insert_one({
+            conversation_data = {
                 "title": title,
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow()
-            })
+            }
+            
+            # Add user_id if provided
+            if user_id:
+                conversation_data["user_id"] = user_id
+                
+            result = await db[CONVERSATIONS_COLLECTION].insert_one(conversation_data)
             return str(result.inserted_id)
         else:
             # Local file fallback
@@ -87,6 +213,10 @@ class Database:
                 "updated_at": datetime.utcnow().isoformat()
             }
             
+            # Add user_id if provided
+            if user_id:
+                new_conversation["user_id"] = user_id
+                
             conversations.append(new_conversation)
             
             with open(CONVERSATIONS_FILE, 'w') as f:
@@ -95,11 +225,17 @@ class Database:
             return new_id
     
     @classmethod
-    async def get_conversations(cls, limit: int = 20, skip: int = 0) -> List[Dict[str, Any]]:
-        """Get list of conversations"""
+    async def get_conversations(cls, limit: int = 20, skip: int = 0, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get list of conversations, optionally filtered by user_id"""
         if cls.use_mongodb:
             db = await cls.get_db()
-            cursor = db[CONVERSATIONS_COLLECTION].find().sort(
+            
+            # Create filter for user_id if provided
+            filter_query = {}
+            if user_id:
+                filter_query["user_id"] = user_id
+                
+            cursor = db[CONVERSATIONS_COLLECTION].find(filter_query).sort(
                 "updated_at", DESCENDING
             ).skip(skip).limit(limit)
             
@@ -112,24 +248,39 @@ class Database:
         else:
             # Local file fallback
             with open(CONVERSATIONS_FILE, 'r') as f:
-                conversations = json.load(f)
+                all_conversations = json.load(f)
             
+            # Filter by user_id if provided
+            if user_id:
+                filtered_conversations = [c for c in all_conversations if c.get("user_id") == user_id]
+            else:
+                filtered_conversations = all_conversations
+                
             # Sort by updated_at in descending order
-            conversations.sort(key=lambda x: x["updated_at"], reverse=True)
+            filtered_conversations.sort(key=lambda x: x["updated_at"], reverse=True)
             
-            return conversations[skip:skip+limit]
+            # Apply skip and limit
+            paginated = filtered_conversations[skip:skip + limit]
+            
+            return paginated
     
     @classmethod
-    async def get_conversation(cls, conversation_id: str) -> Optional[Dict[str, Any]]:
-        """Get a conversation by ID"""
+    async def get_conversation(cls, conversation_id: str, user_id: Optional[str] = None):
+        """Get a conversation by ID with optional user filtering"""
         if cls.use_mongodb:
             db = await cls.get_db()
-            conversation = await db[CONVERSATIONS_COLLECTION].find_one({"_id": ObjectId(conversation_id)})
-            
-            if conversation:
-                conversation["_id"] = str(conversation["_id"])
+            try:
+                # Build query with optional user_id filter
+                query = {"_id": ObjectId(conversation_id)}
+                if user_id:
+                    query["user_id"] = user_id
+                    
+                conversation = await db[CONVERSATIONS_COLLECTION].find_one(query)
+                if conversation:
+                    conversation["_id"] = str(conversation["_id"])
                 return conversation
-            return None
+            except:
+                return None
         else:
             # Local file fallback
             with open(CONVERSATIONS_FILE, 'r') as f:
@@ -137,6 +288,9 @@ class Database:
             
             for conversation in conversations:
                 if conversation["_id"] == conversation_id:
+                    # If user_id is provided, verify ownership
+                    if user_id and conversation.get("user_id") != user_id:
+                        return None
                     return conversation
             
             return None
@@ -146,11 +300,19 @@ class Database:
         """Update conversation title"""
         if cls.use_mongodb:
             db = await cls.get_db()
-            result = await db[CONVERSATIONS_COLLECTION].update_one(
-                {"_id": ObjectId(conversation_id)},
-                {"$set": {"title": title, "updated_at": datetime.utcnow()}}
-            )
-            return result.modified_count > 0
+            try:
+                result = await db[CONVERSATIONS_COLLECTION].update_one(
+                    {"_id": ObjectId(conversation_id)},
+                    {
+                        "$set": {
+                            "title": title,
+                            "updated_at": datetime.utcnow()
+                        }
+                    }
+                )
+                return result.modified_count > 0
+            except:
+                return False
         else:
             # Local file fallback
             with open(CONVERSATIONS_FILE, 'r') as f:
@@ -173,14 +335,16 @@ class Database:
         """Delete a conversation and its messages"""
         if cls.use_mongodb:
             db = await cls.get_db()
-            
-            # Delete the conversation
-            result = await db[CONVERSATIONS_COLLECTION].delete_one({"_id": ObjectId(conversation_id)})
-            
-            # Delete all messages in the conversation
-            await db[MESSAGES_COLLECTION].delete_many({"conversation_id": conversation_id})
-            
-            return result.deleted_count > 0
+            try:
+                # Delete the conversation
+                result = await db[CONVERSATIONS_COLLECTION].delete_one({"_id": ObjectId(conversation_id)})
+                
+                # Delete associated messages
+                await db[MESSAGES_COLLECTION].delete_many({"conversation_id": conversation_id})
+                
+                return result.deleted_count > 0
+            except:
+                return False
         else:
             # Local file fallback
             with open(CONVERSATIONS_FILE, 'r') as f:

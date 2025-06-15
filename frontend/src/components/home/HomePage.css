@@ -125,8 +125,11 @@
 .home-header {
   background-color: #1a73e8;
   padding: 1rem 0;
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
   z-index: 100;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
@@ -288,6 +291,7 @@
 
 .home-main {
   flex: 1;
+  padding-top: 80px;
   padding: 3rem 2rem;
 }
 
@@ -560,8 +564,14 @@
 }
 
 @media (max-width: 768px) {
+  .home-container {
+    width: 100%;
+    overflow-x: hidden;
+  }
+  
   .header-content {
     padding: 0.5rem 1rem;
+    width: 100%;
   }
   
   .features-grid {

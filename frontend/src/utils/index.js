@@ -8,3 +8,6 @@ export * from './layoutUtils';
 
 // Re-export all functions from markdownUtils
 export * from './markdownUtils';
+
+// Re-export all functions from resumeUtils
+export * from './resumeUtils';

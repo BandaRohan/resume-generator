@@ -9,7 +9,7 @@ const HomePage = () => {
 
   const handleCardClick = (agent) => {
     if (!agent.comingSoon) {
-      navigate('/chat');
+      navigate('/login');
     }
   };
 
@@ -109,7 +109,7 @@ const HomePage = () => {
         </div>
       </header>
 
-      <main>
+      <main style={{ paddingTop: '80px' }}>
         <motion.section 
           className="hero-section"
           initial={{ opacity: 0, y: 20 }}

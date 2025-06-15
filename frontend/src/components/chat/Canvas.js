@@ -11,8 +11,9 @@ import {
   FaFileAlt,
   FaPrint
 } from 'react-icons/fa';
-import { getCanvasWidth, convertMarkdownToPDF } from '../../utils';
+import { getCanvasWidth, generateResumeHTML } from '../../utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import '../../styles/resumeStyles.css';
 
 /**
  * Canvas component displays the generated resume content
@@ -230,10 +231,35 @@ const Canvas = ({
             className="bg-white rounded-xl border shadow-sm h-full overflow-auto"
           >
             <iframe
-              srcDoc={convertMarkdownToPDF(canvasContent)}
+              srcDoc={generateResumeHTML(canvasContent)}
               title="Resume Preview"
-              className="w-full h-full border-0"
+              className="w-full h-full border-0 resume-container"
               style={{ minHeight: isMobile ? '70vh' : '80vh' }}
+              onLoad={(e) => {
+                // Apply consistent font styling to iframe content
+                try {
+                  const iframeDoc = e.target.contentDocument || e.target.contentWindow.document;
+                  const style = iframeDoc.createElement('style');
+                  style.textContent = `
+                    @font-face {
+                      font-family: 'ResumeFont';
+                      src: local('Helvetica Neue'), local('Arial'), local('sans-serif');
+                      font-weight: normal;
+                      font-style: normal;
+                      font-display: swap;
+                    }
+                    
+                    body, body * {
+                      font-family: 'ResumeFont', 'Helvetica Neue', Arial, sans-serif !important;
+                      -webkit-text-size-adjust: 100%;
+                      -webkit-font-smoothing: antialiased;
+                    }
+                  `;
+                  iframeDoc.head.appendChild(style);
+                } catch (error) {
+                  console.error('Error applying styles to iframe:', error);
+                }
+              }}
             />
           </motion.div>
         )}

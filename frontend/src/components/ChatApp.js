@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
-import axios from "axios";
-import html2pdf from "html2pdf.js";
+import { chatAPI } from "../services/api";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaRocket, FaSpinner } from "react-icons/fa";
+import { FaRocket, FaSpinner, FaSignOutAlt } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 // Import utility functions from the index file
-import { getCanvasWidth, getChatWidth, extractCanvasContent, convertMarkdownToPDF } from "../utils";
+import { getCanvasWidth, getChatWidth, extractCanvasContent, generateResumePDF, previewResume } from "../utils";
 
 // Import components
 import MessageBubble from "./chat/MessageBubble";
@@ -19,6 +20,8 @@ import Sidebar from "./chat/Sidebar";
  * Main ChatApp component that orchestrates the entire application
  */
 export default function ChatApp() {
+  const { currentUser, logout } = useAuth();
+  const navigate = useNavigate();
   // State variables
   const [messages, setMessages] = useState([]);
   const [userInput, setUserInput] = useState("");
@@ -44,6 +47,12 @@ export default function ChatApp() {
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
   const inputRef = useRef(null);
+  
+  // Handle logout
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   // Check if screen is mobile size
   useEffect(() => {
@@ -75,7 +84,7 @@ export default function ChatApp() {
   const fetchConversations = async () => {
     try {
       setIsInitialLoad(true);
-      const response = await axios.get("http://127.0.0.1:8000/conversations/");
+      const response = await chatAPI.getConversations();
       setConversations(response.data);
       
       // If there are conversations, set the first one as active
@@ -107,10 +116,7 @@ export default function ChatApp() {
   // Create a new conversation
   const createNewConversation = async (title = "New Conversation") => {
     try {
-      // For a new conversation, we'll create it in the database
-      const response = await axios.post("http://127.0.0.1:8000/conversations/", {
-        title: title
-      });
+      const response = await chatAPI.createConversation(title);
       
       const newConversation = {
         _id: response.data.id,
@@ -192,8 +198,8 @@ export default function ChatApp() {
       setMessages([]);
       
       setLoading(true);
-      const response = await axios.get(`http://127.0.0.1:8000/conversations/${conversationId}/messages`);
-      setMessages(response.data.map(msg => ({
+      const response = await chatAPI.getConversation(conversationId);
+      setMessages(response.data.messages.map(msg => ({
         text: msg.text,
         sender: msg.sender,
         error: false
@@ -220,7 +226,7 @@ export default function ChatApp() {
       setIsCanvasOpen(false);
       
       // Delete the conversation and all its messages from the server
-      await axios.delete(`http://127.0.0.1:8000/conversations/${conversationId}`);
+      await chatAPI.deleteConversation(conversationId);
       
       // Remove from local state
       const updatedConversations = conversations.filter(conv => conv._id !== conversationId);
@@ -325,15 +331,12 @@ export default function ChatApp() {
         setIsTempChat(false);
       }
       
-      // Send message to API
-      const { data } = await axios.post("http://127.0.0.1:8000/chat/", {
-        message: userMessage,
-        conversation_id: currentConversationId
-      });
+      // Send the message to the backend
+      const response = await chatAPI.sendMessage(userMessage, currentConversationId);
       
       // Add bot response to messages
       const botMessage = {
-        text: data.response,
+        text: response.data.response,
         sender: "bot",
         error: false
       };
@@ -341,8 +344,8 @@ export default function ChatApp() {
       setMessages(prevMessages => [...prevMessages, botMessage]);
       
       // If the conversation ID from the server is different, update it
-      if (data.conversation_id && data.conversation_id !== currentConversationId) {
-        setActiveConversationId(data.conversation_id);
+      if (response.data.conversation_id && response.data.conversation_id !== currentConversationId) {
+        setActiveConversationId(response.data.conversation_id);
       }
     } catch (error) {
       console.error("Error processing request:", error);
@@ -441,37 +444,22 @@ export default function ChatApp() {
     }
   };
 
-  // Download resume as PDF
+  // Download resume as PDF with consistent font rendering
   const downloadResume = () => {
-    // Create HTML content
-    const htmlContent = convertMarkdownToPDF(canvasContent);
+    // Show loading state
+    setLoading(true);
     
-    // Create a temporary container
-    const element = document.createElement("div");
-    element.innerHTML = htmlContent;
-    document.body.appendChild(element);
-    
-    // Configure html2pdf options
-    const opt = {
-      margin: [10, 10],
-      filename: "resume.pdf",
-      image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
-    };
-    
-    // Generate PDF
-    html2pdf()
-      .set(opt)
-      .from(element)
-      .save()
+    // Use the new generateResumePDF utility
+    generateResumePDF(canvasContent, { filename: "resume.pdf" })
       .then(() => {
-        // Clean up
-        document.body.removeChild(element);
+        // Success
+        console.log("Resume PDF generated successfully");
       })
       .catch(error => {
         console.error("Error generating PDF:", error);
-        document.body.removeChild(element);
+      })
+      .finally(() => {
+        setLoading(false);
       });
   };
 
@@ -549,6 +537,8 @@ export default function ChatApp() {
           setIsCanvasOpen={setIsCanvasOpen} 
           resetChat={resetChat}
           toggleSidebar={toggleSidebar}
+          currentUser={currentUser}
+          handleLogout={handleLogout}
         />
 
         <main 
