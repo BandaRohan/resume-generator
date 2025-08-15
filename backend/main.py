@@ -167,32 +167,6 @@ async def update_conversation(conversation_id: str, request: ConversationUpdate)
         logger.error(f"Error updating conversation: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.delete("/conversations/{conversation_id}")
-async def delete_conversation(conversation_id: str):
-    try:
-        # Clear the conversation memory in the agent
-        resume_agent.clear_memory(conversation_id)
-        
-        # Delete the conversation from the database
-        success = await Database.delete_conversation(conversation_id)
-        if not success:
-            raise HTTPException(status_code=404, detail="Conversation not found")
-        return {"message": "Conversation deleted successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error deleting conversation: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/conversations/{conversation_id}/messages")
-async def get_messages(conversation_id: str):
-    try:
-        messages = await Database.get_messages(conversation_id)
-        return messages
-    except Exception as e:
-        logger.error(f"Error getting messages: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
 # Error handler
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):

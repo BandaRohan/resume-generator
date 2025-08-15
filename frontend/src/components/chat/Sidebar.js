@@ -43,7 +43,7 @@ const Sidebar = ({
     if (!editTitle.trim()) return;
     
     try {
-      await axios.put(`http://127.0.0.1:8000/conversations/${id}`, {
+      await axios.put(`https://backend.raxoner.com/conversations/${id}`, {
         title: editTitle
       });
       
@@ -75,7 +75,7 @@ const Sidebar = ({
       }
       
       // Delete the conversation and all its messages from the server
-      const response = await axios.delete(`http://127.0.0.1:8000/conversations/${id}`);
+      const response = await axios.delete(`https://backend.raxoner.com/conversations/${id}`);
       
       if (response.status === 200 || response.status === 204) {
         // Remove from local state immediately
